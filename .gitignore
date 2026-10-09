@@ -1,0 +1,65 @@
+# ==============================================================================
+# Convoy Root Git Ignore
+# ==============================================================================
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment files & secrets
+.env
+.env.*
+.env*.local
+!.env.example
+!**/.env.example
+
+# Expo & Mobile builds
+.expo/
+**/.expo/
+dist/
+**/dist/
+web-build/
+**/web-build/
+expo-env.d.ts
+**/*.tsbuildinfo
+
+# Native project directories & keys
+ios/
+android/
+**/ios/
+**/android/
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.metro-health-check*
+
+# Server runtime state & database files
+.convoy-state.json
+**/.convoy-state.json
+*.db
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+
+# Logs & debugging
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS files
+.DS_Store
+Thumbs.db
+*.pem
+
+# IDE & temporary directories
+.idea/
+*.swp
+*.swo
+scratch/
+.git_backups/

@@ -1,0 +1,14 @@
+# Dependencies
+/node_modules
+
+# Build artifacts
+/dist
+
+# Runtime persistence & state
+.convoy-state.json
+
+# Environment & logs
+.env
+.env*.local
+*.log
+npm-debug.log*
