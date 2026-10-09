@@ -1,12 +1,7 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-/**
- * Best-effort dev URL detection:
- *  - On Android emulator, host is 10.0.2.2
- *  - On iOS simulator, host is localhost
- *  - On a physical device, host is the LAN IP that Metro is served from
- */
+
 function resolveDevUrl(): string {
   if (process.env.EXPO_PUBLIC_SOCKET_URL) {
     return process.env.EXPO_PUBLIC_SOCKET_URL;
@@ -32,4 +27,4 @@ function resolveDevUrl(): string {
   return `http://localhost:${PORT}`;
 }
 
-export const SOCKET_URL = "https://malt-clear-frying.ngrok-free.dev";
+export const SOCKET_URL = resolveDevUrl();// add your ngrok public URL when build this app
