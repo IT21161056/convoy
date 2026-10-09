@@ -1,19 +1,7 @@
-import { useConvoy } from "@/features/convoy";
 import { colors } from "@/theme";
-import { Stack, router } from "expo-router";
-import { useEffect } from "react";
+import { Stack } from "expo-router";
 
 export default function ConvoyLayout() {
-  const convoy = useConvoy();
-
-  useEffect(() => {
-    if (!convoy) {
-      router.replace("/(welcome)");
-    }
-  }, [convoy]);
-
-  if (!convoy) return null;
-
   return (
     <Stack
       screenOptions={{
@@ -24,3 +12,4 @@ export default function ConvoyLayout() {
     />
   );
 }
+

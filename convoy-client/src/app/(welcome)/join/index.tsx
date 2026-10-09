@@ -1,4 +1,4 @@
-import { Screen } from "@/components/ui";
+import { BackButton, Screen } from "@/components/ui";
 import { colors, radii, spacing, typography } from "@/theme";
 import { router, Stack } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -13,8 +13,17 @@ export default function JoinChooserScreen() {
           headerTintColor: colors.text,
           headerShadowVisible: false,
           title: "",
+          headerLeft: () => (
+            <BackButton
+              buttonSize={36}
+              size={18}
+              onPress={() => router.back()}
+              style={{ marginRight: spacing.sm }}
+            />
+          ),
         }}
       />
+
       <Screen>
         <View style={styles.body}>
           <View style={styles.header}>

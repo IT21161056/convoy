@@ -1,10 +1,11 @@
-import { Button, CodeInput, Input, Screen } from "@/components/ui";
+import { BackButton, Button, CodeInput, Input, Screen } from "@/components/ui";
 import { convoyCommands } from "@/features/convoy";
 import { getItem, setItem, STORAGE_KEYS } from "@/services/storage";
 import { colors, spacing, typography } from "@/theme";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+
 
 const CODE_LENGTH = 5;
 
@@ -64,8 +65,17 @@ export default function EnterCodeScreen() {
           headerTintColor: colors.text,
           headerShadowVisible: false,
           title: "",
+          headerLeft: () => (
+            <BackButton
+              buttonSize={36}
+              size={18}
+              onPress={() => router.back()}
+              style={{ marginRight: spacing.sm }}
+            />
+          ),
         }}
       />
+
       <Screen>
         <View style={styles.body}>
           <View style={styles.header}>

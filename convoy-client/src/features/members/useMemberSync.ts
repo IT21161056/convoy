@@ -48,13 +48,24 @@ export function useMemberSync() {
 
     // ---------- convoy ended (host-initiated) ----------
     const offEnded = on<{ reason: string }>(EVENTS.CONVOY_ENDED, () => {
-      // Tear down everything and send the user home.
-      locationStore.stop();
-      chatStore.clear();
-      convoyStore.clear();
+      // Tear down everything and send the user home safely
+      try {
+        locationStore.stop();
+      } catch (e) {
+        console.warn("[useMemberSync] location stop error:", e);
+      }
       router.replace("/(welcome)");
+      setTimeout(() => {
+        try {
+          chatStore.clear();
+          convoyStore.clear();
+        } catch (e) {
+          console.warn("[useMemberSync] store clear error:", e);
+        }
+      }, 100);
       toast.show({ message: "Convoy ended by host" });
     });
+
 
     // Periodic status sweep derived locally from lastSeenAt age (DESIGN.md §15.6)
     const sweepInterval = setInterval(() => {
