@@ -18,6 +18,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -36,7 +37,7 @@ export default function RootLayout() {
   if (!loaded) return null;
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="light" />
       <ToastProvider>
         <SocketLifecycle />
@@ -48,7 +49,7 @@ export default function RootLayout() {
           }}
         />
       </ToastProvider>
-    </>
+    </GestureHandlerRootView>
   );
 }
 
