@@ -16,7 +16,7 @@
 | Field | Detail |
 | :--- | :--- |
 | **Application Name** | **Convoy** |
-| **Repository URL** | [GitHub Repository](https://github.com/SLIIT-EAD/SE5070-Enterprise-Mobility-Convoy) |
+| **Repository URL** | [GitHub Repository](https://github.com/IT21161056/convoy) |
 | **Client Platform** | React Native (Expo SDK 52, Expo Router v4, TypeScript 5.3) |
 | **Backend Service** | Node.js (v20+ LTS), TypeScript, Socket.IO (v4.8), Express Engine |
 | **Local Data Storage** | SQLite (`expo-sqlite` v14) with WAL mode, relational schema & FIFO Outbox queue |
@@ -315,70 +315,81 @@ sequenceDiagram
 
 The codebase is organized into distinct, modular directories aligned with the separation of concerns principle:
 
-```
-mobility/
+```text
+convoy/
 ├── convoy-server/                   # Node.js + Socket.IO Backend Service
 │   ├── src/
 │   │   ├── handlers/                # Event Handlers
 │   │   │   ├── chat.ts              # Chat messaging, sequence assignment, deduplication
 │   │   │   ├── convoy.ts            # Convoy lifecycle, join, rejoin, delta-sync
 │   │   │   ├── location.ts          # Location streaming, room broadcast
-│   │   │   └── ppt.ts               # Push-to-Talk audio clip relay
+│   │   │   ├── ptt.ts               # Push-to-Talk audio clip relay (renamed from ppt.ts)
+│   │   │   ├── ping.ts              # Keep-alive heartbeat & ping/pong
+│   │   │   └── settings.ts          # Room settings & permissions
 │   │   ├── state.ts                 # In-memory Convoys Map, ring buffers, deduplication Sets
 │   │   ├── persistence.ts           # JSON snapshot persistence across server reboots
+│   │   ├── tunnel.ts                # Automatic Ngrok tunnel integration with console QR code
 │   │   ├── types.ts                 # Shared protocol payloads and event contracts
 │   │   └── index.ts                 # Server entry point, stale cleanup interval
+│   ├── Decisions.md                 # Backend architectural decision notes
 │   └── package.json
 │
-└── convoy-new/                      # React Native Mobile Client Application
-    ├── src/
-    │   ├── app/                     # Expo Router Route Screens (Navigation Only)
-    │   │   ├── (welcome)/           # Pre-convoy onboarding flow
-    │   │   │   ├── create.tsx       # Create convoy screen
-    │   │   │   ├── join/code.tsx    # Join by 5-char code
-    │   │   │   └── join/scan.tsx    # Join via Camera QR scanner
-    │   │   ├── (convoy)/            # Active convoy operating flow
-    │   │   │   ├── lobby.tsx        # Pre-trip member staging lobby
-    │   │   │   ├── map.tsx          # Main Convoy Map & Driving Console
-    │   │   │   ├── qr.tsx           # Show shareable Convoy QR code
-    │   │   │   └── settings.tsx     # Convoy settings & leave/end controls
-    │   │   └── index.tsx            # Splash & cold-boot session restorer
-    │   │
-    │   ├── components/              # UI Component Library
-    │   │   ├── HoldToTalkButton.tsx # [CUSTOM 1] Push-to-Talk custom control
-    │   │   ├── ConvoyMemberMarker.tsx # [CUSTOM 2] Rotatable vehicle map marker
-    │   │   ├── ConnectionStatusPill.tsx # [CUSTOM 3] Glanceable connectivity pill
-    │   │   ├── ChatDrawer.tsx       # Bottom-sheet road chat interface
-    │   │   ├── MemberStrip.tsx      # Horizontal convoy member status bar
-    │   │   ├── MemberDetailSheet.tsx# Detailed relative distance member card
-    │   │   └── MapFloatingControls.tsx # Recenter & layer controls
-    │   │
-    │   ├── features/                # Domain-Driven Feature Modules
-    │   │   ├── convoy/              # Convoy state, membership, commands
-    │   │   ├── location/            # Tracking hooks, broadcast throttling
-    │   │   ├── chat/                # Chat state, optimistic mutations
-    │   │   ├── pushToTalk/          # Audio recording, clip buffering
-    │   │   └── connection/          # Socket lifecycle & network monitor
-    │   │
-    │   ├── db/                      # Local Data Layer (SQLite Engine)
-    │   │   ├── database.ts          # SQLite connection, WAL pragmas, schema migrations
-    │   │   ├── convoyRepo.ts        # Convoys & members relational queries
-    │   │   ├── chatRepo.ts          # Messages persistence & status updates
-    │   │   └── outboxRepo.ts        # Durable FIFO outbox mutation queue
-    │   │
-    │   ├── services/                # Protocol & Infrastructure Services
-    │   │   ├── socket/              # Socket.IO client singleton & typed events
-    │   │   ├── sync/
-    │   │   │   ├── deltaSync.ts     # Sequence-based delta resynchronization
-    │   │   │   └── outboxSync.ts    # FIFO queue processor & external store
-    │   │   └── storage.ts           # Lightweight key-value storage (AsyncStorage)
-    │   │
-    │   ├── utils/                   # Pure Helper & Algorithmic Modules
-    │   │   ├── constants.ts         # Centralized constraint values & thresholds
-    │   │   ├── geo.ts               # Haversine, vector dot product, trajectory ordering
-    │   │   └── format.ts            # Glanceable formatting (km/h, relative time)
-    │   └── theme/                   # Night-drive color palette, typography tokens
-    └── app.json                     # Native permissions & Expo config
+├── convoy-client/                   # React Native Mobile Client Application
+│   ├── src/
+│   │   ├── app/                     # Expo Router Route Screens (Navigation Only)
+│   │   │   ├── (welcome)/           # Pre-convoy onboarding flow
+│   │   │   │   ├── create.tsx       # Create convoy screen
+│   │   │   │   ├── join/code.tsx    # Join by 6-char code
+│   │   │   │   └── join/scan.tsx    # Join via Camera QR scanner
+│   │   │   ├── (convoy)/            # Active convoy operating flow
+│   │   │   │   ├── lobby.tsx        # Pre-trip member staging lobby
+│   │   │   │   ├── map.tsx          # Main Convoy Map & Driving Console
+│   │   │   │   ├── qr.tsx           # Show shareable Convoy QR code
+│   │   │   │   ├── permissions.tsx  # GPS & microphone hardware permission flow
+│   │   │   │   └── settings.tsx     # Convoy settings & leave/end controls
+│   │   │   ├── invite/[code].tsx    # Deep linking invite resolver
+│   │   │   └── index.tsx            # Splash & cold-boot session restorer
+│   │   │
+│   │   ├── components/              # UI Component Library
+│   │   │   ├── HoldToTalkButton.tsx # [CUSTOM 1] Push-to-Talk custom control
+│   │   │   ├── ConvoyMemberMarker.tsx # [CUSTOM 2] Rotatable vehicle map marker
+│   │   │   ├── ConnectionStatusPill.tsx # [CUSTOM 3] Glanceable connectivity pill
+│   │   │   ├── ConvoyTelemetryHud.tsx # Top HUD with speed, heading, and lead distance
+│   │   │   ├── LocationStatusBanner.tsx # Permission & degradation alert banner
+│   │   │   ├── ChatDrawer.tsx       # Bottom-sheet road chat interface
+│   │   │   ├── MemberStrip.tsx      # Horizontal convoy member status bar
+│   │   │   ├── MemberDetailSheet.tsx# Detailed relative distance member card
+│   │   │   └── MapFloatingControls.tsx # Recenter & layer controls
+│   │   │
+│   │   ├── features/                # Domain-Driven Feature Modules
+│   │   │   ├── convoy/              # Convoy state, membership, commands
+│   │   │   ├── location/            # Tracking hooks, broadcast throttling, background task
+│   │   │   ├── chat/                # Chat state, optimistic mutations
+│   │   │   ├── pushToTalk/          # Audio recording, clip buffering, floor sync
+│   │   │   ├── members/             # Member sync & status derivation
+│   │   │   └── connection/          # Socket lifecycle & network monitor
+│   │   │
+│   │   ├── db/                      # Local Data Layer (SQLite Engine)
+│   │   │   ├── database.ts          # SQLite connection, WAL pragmas, schema migrations
+│   │   │   ├── convoyRepo.ts        # Convoys & members relational queries
+│   │   │   ├── chatRepo.ts          # Messages persistence & status updates
+│   │   │   └── outboxRepo.ts        # Durable FIFO outbox mutation queue
+│   │   │
+│   │   ├── services/                # Protocol & Infrastructure Services
+│   │   │   ├── socket/              # Socket.IO client singleton, dynamic URL & events
+│   │   │   ├── sync/                # Delta resync & Outbox sync processors
+│   │   │   └── storage.ts           # Lightweight key-value storage (AsyncStorage)
+│   │   │
+│   │   ├── utils/                   # Pure Helper & Algorithmic Modules
+│   │   │   ├── constants.ts         # Centralized constraint values & thresholds
+│   │   │   ├── geo.ts               # Haversine, vector dot product, trajectory ordering
+│   │   │   ├── format.ts            # Glanceable formatting (km/h, relative time)
+│   │   │   └── store.ts             # Lightweight reactive state subscriber
+│   │   └── theme/                   # Night-drive color palette, typography tokens
+│   ├── app.json                     # Native permissions & Expo config
+│   └── eas.json                     # EAS Build configuration for APK preview
+├── .gitignore                       # Unified monorepo ignore rules
+└── README.md                        # Master repository documentation
 ```
 
 #### Why This Structure Was Chosen
@@ -1051,7 +1062,7 @@ To satisfy the grading criteria for implementation solidity and process document
 #### DR-001: Removal of Leftover Music Streaming in Favor of Enterprise Mobility Focus
 - **Status**: Accepted
 - **Context**: An early draft included a shared music queue feature. However, music streaming complicated background audio sessions, created audio focus conflicts with Push-to-Talk, and diverted focus from core enterprise mobility requirements.
-- **Decision**: Purged all music streaming code, DJ permission fields, and playback handlers across both `convoy-server` and `convoy-new`. Replaced music UI with focus on driver safety and group chat.
+- **Decision**: Purged all music streaming code, DJ permission fields, and playback handlers across both `convoy-server` and `convoy-client`. Replaced music UI with focus on driver safety and group chat.
 - **Consequences**: Simplified the Socket.IO payload contract, eliminated audio focus conflicts with PTT, and produced a cleaner codebase for the live viva defense.
 
 #### DR-002: Custom Node.js + Socket.IO Backend over Cloud BaaS (Firebase/Amplify)
@@ -1078,6 +1089,18 @@ To satisfy the grading criteria for implementation solidity and process document
 - **Decision**: Convoy creation and room joining require an active network connection. Room codes are generated and validated authoritatively by the server. If offline, the UI shows a clear message explaining that a connection is required.
 - **Consequences**: Prevents split-brain room conflicts and ensures every active convoy has a valid server-assigned ID.
 
+#### DR-006: Monorepo Consolidation of Client and Server into Unified Git Repository
+- **Status**: Accepted
+- **Context**: Initially, `convoy-client` and `convoy-server` were initialized as two independent Git repositories. This introduced version-drift friction, disjointed commit histories, and prevented single-URL evaluation for the SE5070 project submission.
+- **Decision**: Consolidated both frontend and backend under a single unified Git repository root (`convoy`), managed at `https://github.com/IT21161056/convoy`. Removed nested `.git` folders (backing up historical refs to `.git/nested_repos_backup/`), unified the root `.gitignore` to prevent secret/cache leakage (`.env`, `node_modules/`, `.expo/`), and authored a comprehensive root `README.md`.
+- **Consequences**: Atomic commits across socket protocol changes, unified issue tracking, simplified deployment, and a single repository link for academic viva defense.
+
+#### DR-007: Authoritative Host Ending (`convoy:end`) vs. Non-Destructive Host Leaving (`convoy:leave`)
+- **Status**: Accepted
+- **Context**: In early iterations, both the host exiting and peers leaving invoked `convoy:leave`. The server attempted to promote the next member to host when the host disconnected, preventing the actual host from ever deliberately ending the road-trip session for all vehicles.
+- **Decision**: Disambiguated `convoy:leave` (which gracefully departs the caller and promotes the next peer to avoid orphaning the group) from `convoy:end` (authorized exclusively to the convoy host, which broadcasts `convoy:ended` to all connected clients and purges the room state).
+- **Consequences**: Gives the convoy leader explicit authority to terminate the session, while ensuring unexpected host disconnects or departures do not strand remaining convoy participants.
+
 ---
 
 ### 9.2 AI Tooling & Prompt Audit Trail
@@ -1089,7 +1112,7 @@ In compliance with the assignment submission guidelines, all AI interactions wer
 - **Task**: Remove leftover music streaming logic across client and server.
 - **Verbatim Prompt**:
   > `"check this updated md file"` followed by selecting the recommended task to purge leftover music code across server and client and initialize `docs/ai-log.md`.
-- **Generated Output**: Removed music socket events (`MUSIC_START`, `MUSIC_STOP`) and state fields from `convoy-server`, deleted `src/features/music/` from `convoy-new`, and refactored UI drawers to focus on chat.
+- **Generated Output**: Removed music socket events (`MUSIC_START`, `MUSIC_STOP`) and state fields from `convoy-server`, deleted `src/features/music/` from `convoy-client`, and refactored UI drawers to focus on chat.
 - **Deficiencies & Fixes**: `map.tsx` had an `isDj` boolean aliased to `self?.isHost` for PTT permissions. Refactored this to `isHostUser`.
 
 #### Entry 2: Constraint Constants & Spatial Math Algorithms
@@ -1124,6 +1147,29 @@ In compliance with the assignment submission guidelines, all AI interactions wer
 - **Generated Output**: Updated `convoy-server` with monotonic counters and bounded ring buffers; implemented `deltaSync.ts` on client.
 - **Deficiencies & Fixes**: Type mismatch in `chat.ts` acknowledgment callback (`seq` typed strictly as number). Resolved by assigning `convoy.seq`. Fixed syntax typo in `outboxSync.ts` callback payload.
 
+#### Entry 6: Server Tunneling Automation & Adaptive Mobile Dev URL Resolution
+- **Date**: 2026-10-09
+- **Task**: Automate Ngrok tunneling on `convoy-server` and dynamically resolve local/tunnel backend endpoints on `convoy-client`.
+- **Verbatim Prompt**:
+  > `"add your ngrok public URL when build this app"`
+- **Generated Output**: Built `tunnel.ts` in `convoy-server` using the official ngrok SDK to generate a live public HTTPS address and terminal QR code on startup. Refactored `src/services/socket/config.ts` with `resolveDevUrl()` to gracefully fall back between `EXPO_PUBLIC_SOCKET_URL`, Android emulator loopback (`10.0.2.2`), and Metro host LAN IP.
+- **Deficiencies & Fixes**: Replaced hardcoded tunnel endpoints with clean dynamic fallback logic to ensure preview builds function both locally and over the air.
+
+#### Entry 7: Single Monorepo Consolidation & Unified Git Repository
+- **Date**: 2026-10-09
+- **Task**: Merge disjointed client and server directories into a single root Git repository.
+- **Verbatim Prompt**:
+  > `"now make this project as to a single git repo"`
+- **Generated Output**: Initialized unified root repository `convoy`, safely backed up sub-git histories to `.git/nested_repos_backup/`, authored root `.gitignore`, and committed all files to branch `main`. Pushed to official remote `https://github.com/IT21161056/convoy.git`.
+- **Deficiencies & Fixes**: Subfolder `.git` directories caused Git to treat child directories as submodules (gitlinks) with missing tree contents. Resolved by removing internal `.git` directories and tracking all files directly from the repository root.
+
+#### Entry 8: Master README Architecture & Setup Documentation
+- **Date**: 2026-10-09
+- **Task**: Author comprehensive root documentation covering architecture, setup, and features.
+- **Verbatim Prompt**:
+  > `"update the README file"`
+- **Generated Output**: Authored comprehensive root `README.md` featuring architecture diagram (Mermaid), domain feature matrix, quick start guide, device connection methods (Ngrok tunnel vs. adb reverse), and EAS build instructions.
+
 ---
 
 ### 9.3 Failure Logs, Runtime Bugs, and Engineering Fixes
@@ -1154,6 +1200,16 @@ Documenting real errors encountered during implementation and how they were reso
 - **Symptom**: Outgoing chat messages rendered on the left as other members' messages rather than on the right in accent color.
 - **Root Cause**: In `ChatDrawer.tsx`, the check was written as `isSelf = message.senderId === "self"`. The sender ID is actually the user's UUID.
 - **Fix**: Updated the check to compare against the local session ID: `isSelf = message.senderId === convoy?.selfId`.
+
+#### Failure 5: Submodule Gitlink Occlusion during Monorepo Migration
+- **Symptom**: Staging the root project (`git add .`) treated `convoy-client` and `convoy-server` as embedded submodules (gitlinks) rather than normal folders, leaving all source files unversioned.
+- **Root Cause**: Both subfolders had previously been initialized with independent `.git` directories. Git interprets directories containing `.git` as nested gitlinks (`mode 160000`).
+- **Fix**: Safely archived the nested `.git` folders into `.git/nested_repos_backup/` and removed them from the working directories. Re-ran `git add .`, which immediately indexed all 175+ files under root version control.
+
+#### Failure 6: Accidental Convoy Orphan/Destruction on Host Exit
+- **Symptom**: When a convoy host left the session, the backend promoted the next participant to host instead of ending the convoy, leaving remaining drivers in an unintended state.
+- **Root Cause**: The client called `convoyCommands.leave()` (emitting `convoy:leave`) for both "Leave Convoy" and "End Convoy". The server could not distinguish between a host leaving personal navigation versus terminating the trip.
+- **Fix**: Added a dedicated `convoy:end` socket event with handler logic in `handlers/convoy.ts`. When triggered by the host, the server broadcasts `convoy:ended` to all participants and tears down the room, cleanly navigating all drivers back to onboarding.
 
 ---
 

@@ -250,5 +250,59 @@ Chronological audit log of AI-assisted tasks, user prompts, actions, and resolve
 5. **Verification**:
    - `npx tsc --noEmit` exited code `0`.
 
+---
 
+## 2026-10-09 — Step 6: Server Tunneling Automation & Adaptive Mobile Dev URL Resolution
 
+**Prompt**:
+"add your ngrok public URL when build this app"
+
+**Result**:
+1. **Server (`convoy-server`)**:
+   - Added `tunnel.ts` using `@ngrok/ngrok` to automatically launch a secure public HTTPS/WSS tunnel on server boot.
+   - Rendered high-contrast ANSI QR code and live public URL directly in the server console for zero-config scanning.
+2. **Client (`convoy-client`)**:
+   - Refactored `src/services/socket/config.ts` with `resolveDevUrl()`.
+   - Enabled fallback priority: `process.env.EXPO_PUBLIC_SOCKET_URL` -> Android emulator loopback (`10.0.2.2`) -> Metro LAN host IP.
+3. **Verification**:
+   - Server tunnel successfully created and health checked (`/health` returned 200).
+   - Client connected cleanly to remote backend without hardcoded localhost restrictions.
+
+---
+
+## 2026-10-09 — Step 7: Single Monorepo Consolidation & Unified Git Repository
+
+**Prompt**:
+"now make this project as to a single git repo"
+
+**Result**:
+1. **Repository Consolidation**:
+   - Identified separate `.git` repositories in `convoy-client` and `convoy-server`.
+   - Archived prior sub-repository git databases to `.git/nested_repos_backup/` to retain reflogs and config.
+   - Removed nested `.git` folders to eliminate Git submodule / gitlink collisions.
+   - Initialized unified root Git repository `convoy` on branch `main`.
+   - Created comprehensive root `.gitignore` protecting secrets (`.env`), build caches (`.expo`, `dist`), and runtime states (`.convoy-state.json`).
+   - Staged all 175+ files and committed unified snapshot.
+2. **Remote Push**:
+   - Added remote origin `https://github.com/IT21161056/convoy.git`.
+   - Pushed branch `main` to GitHub.
+
+**Failures/errors**:
+- Staging originally detected `convoy-client/` and `convoy-server/` as submodule gitlinks with empty directories on GitHub. Resolved by archiving nested `.git` directories and adding all client and server source files directly from the repository root.
+
+---
+
+## 2026-10-09 — Step 8: Master README Architecture & Setup Documentation
+
+**Prompt**:
+"update the README file"
+
+**Result**:
+1. **Authored Root README (`README.md`)**:
+   - Created comprehensive repository documentation including technology badges, project overview, and feature matrix.
+   - Designed Mermaid system architecture diagram covering React Native client, SQLite outbox, Socket.IO server, and Ngrok tunnel.
+   - Documented monorepo directory tree and setup guides for both `convoy-server` and `convoy-client`.
+   - Outlined physical device connectivity methods (Ngrok tunnel vs. `adb reverse`).
+   - Added EAS Build command references and technical documentation links.
+2. **Verification**:
+   - Committed and pushed updated README to `origin main`.
