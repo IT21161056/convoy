@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
-  LayoutAnimation,
   Platform,
   Pressable,
   StyleSheet,
@@ -14,6 +13,15 @@ import {
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
+import BottomSheet, {
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
 
 import { ChatDrawer } from "@/components/ChatDrawer";
 import { ConnectionStatusPill } from "@/components/ConnectionStatusPill";
@@ -72,7 +80,19 @@ export default function MapScreen() {
   const connectionState = useConnectionState();
   const pendingCount = useOutboxPendingCount();
 
-  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const bottomSheetRef = useRef<BottomSheet>(null);
+  const [sheetIndex, setSheetIndex] = useState(1); // 0 = collapsed dock, 1 = expanded console
+  const isPanelCollapsed = sheetIndex === 0;
+
+  const animatedIndex = useSharedValue<number>(1);
+
+  const collapsedSnap = useMemo(() => 56 + insets.bottom, [insets.bottom]);
+  const expandedSnap = useMemo(() => 360 + insets.bottom, [insets.bottom]);
+  const snapPoints = useMemo(
+    () => [collapsedSnap, expandedSnap],
+    [collapsedSnap, expandedSnap],
+  );
+
   const [chatOpen, setChatOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
@@ -81,9 +101,28 @@ export default function MapScreen() {
   const [showTraffic, setShowTraffic] = useState(false);
 
   const togglePanelCollapse = useCallback(() => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setIsPanelCollapsed((prev) => !prev);
+    if (sheetIndex === 0) {
+      bottomSheetRef.current?.snapToIndex(1);
+    } else {
+      bottomSheetRef.current?.snapToIndex(0);
+    }
+  }, [sheetIndex]);
+
+  const handleSheetChange = useCallback((index: number) => {
+    setSheetIndex(index);
   }, []);
+
+  const floatingControlsAnimatedStyle = useAnimatedStyle(() => {
+    const bottomOffset = interpolate(
+      animatedIndex.value,
+      [0, 1],
+      [collapsedSnap + spacing.sm, expandedSnap + spacing.sm],
+      Extrapolation.CLAMP,
+    );
+    return {
+      bottom: bottomOffset,
+    };
+  });
 
   // ---------------- start/stop location tracking based on settings ----------------
   useEffect(() => {
@@ -156,6 +195,30 @@ export default function MapScreen() {
   const connectedCount = members.filter(
     (m) => m.status !== "offline" && m.status !== "lost",
   ).length;
+
+  const renderSheetHandle = useCallback(
+    () => (
+      <Pressable
+        onPress={togglePanelCollapse}
+        hitSlop={12}
+        style={styles.notchHandle}
+        accessibilityRole="button"
+        accessibilityLabel={
+          isPanelCollapsed ? "Show Convoy Controls" : "Hide Convoy Controls"
+        }
+      >
+        <View style={styles.notch} />
+        {/* <View style={styles.notchLabelRow}>
+          <Text style={styles.notchLabelText}>
+            {isPanelCollapsed
+              ? `▲ Show Controls (${connectedCount} connected)`
+              : "▼ Hide Panel"}
+          </Text>
+        </View> */}
+      </Pressable>
+    ),
+    [togglePanelCollapse, isPanelCollapsed, connectedCount],
+  );
 
   const validWaypoints = useMemo(() => {
     return orderedMembers
@@ -261,12 +324,12 @@ export default function MapScreen() {
       edgePadding: {
         top: insets.top + 120,
         right: 50,
-        bottom: insets.bottom + 230,
+        bottom: insets.bottom + (isPanelCollapsed ? 100 : 380),
         left: 50,
       },
       animated: true,
     });
-  }, [validWaypoints, insets, is3D]);
+  }, [validWaypoints, insets, is3D, isPanelCollapsed]);
 
   // Auto-recenter once, when GPS first locks in.
   const hadFixRef = useRef(false);
@@ -298,9 +361,9 @@ export default function MapScreen() {
   // Calculate distance to host (convoy leader) if applicable
   const distanceToHost =
     hostMember &&
-    hostMember.id !== convoy.selfId &&
-    positionsById[hostMember.id] &&
-    positionsById[convoy.selfId]
+      hostMember.id !== convoy.selfId &&
+      positionsById[hostMember.id] &&
+      positionsById[convoy.selfId]
       ? distanceMeters(positionsById[convoy.selfId], positionsById[hostMember.id])
       : null;
 
@@ -324,17 +387,17 @@ export default function MapScreen() {
         initialRegion={
           selfLocation
             ? {
-                ...selfLocation.position,
+              ...selfLocation.position,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            }
+            : validWaypoints[0]
+              ? {
+                latitude: validWaypoints[0].latitude,
+                longitude: validWaypoints[0].longitude,
                 latitudeDelta: 0.02,
                 longitudeDelta: 0.02,
               }
-            : validWaypoints[0]
-              ? {
-                  latitude: validWaypoints[0].latitude,
-                  longitude: validWaypoints[0].longitude,
-                  latitudeDelta: 0.02,
-                  longitudeDelta: 0.02,
-                }
               : INITIAL_REGION
         }
         showsUserLocation={false}
@@ -491,10 +554,10 @@ export default function MapScreen() {
       </View>
 
       {/* ---------------- Floating Map Controls Dock (3D Angle, Fit, Recenter) ---------------- */}
-      <View
+      <Animated.View
         style={[
           styles.floatingControlsSlot,
-          { bottom: insets.bottom + (isPanelCollapsed ? 68 : 210) },
+          floatingControlsAnimatedStyle,
         ]}
       >
         <MapFloatingControls
@@ -506,89 +569,79 @@ export default function MapScreen() {
           onToggleTraffic={() => setShowTraffic((prev) => !prev)}
           heading={selfHeading}
         />
-      </View>
+      </Animated.View>
 
-      {/* ---------------- Bottom console ---------------- */}
-      <View
-        style={[
-          styles.bottom,
-          isPanelCollapsed && styles.bottomCollapsed,
-          { paddingBottom: insets.bottom + (isPanelCollapsed ? spacing.sm : spacing.xs) },
-        ]}
+      {/* ---------------- Bottom console (powered by @gorhom/bottom-sheet) ---------------- */}
+      <BottomSheet
+        ref={bottomSheetRef}
+        index={1}
+        snapPoints={snapPoints}
+        enableDynamicSizing={false}
+        enableContentPanningGesture={false}
+        enableHandlePanningGesture={true}
+        enableOverDrag={false}
+        animatedIndex={animatedIndex}
+        onChange={handleSheetChange}
+        handleComponent={renderSheetHandle}
+        backgroundStyle={styles.bottomSheetBackground}
+        style={styles.bottomSheetShadow}
       >
-        {/* Interactive drag notch / toggle handle (DESIGN.md §15.1 - Driver Safety Touch Target) */}
-        <Pressable
-          onPress={togglePanelCollapse}
-          hitSlop={12}
-          style={styles.notchHandle}
-          accessibilityRole="button"
-          accessibilityLabel={
-            isPanelCollapsed ? "Show Convoy Controls" : "Hide Convoy Controls"
-          }
+        <BottomSheetView
+          style={[
+            styles.bottomSheetContent,
+            { paddingBottom: insets.bottom + spacing.xs },
+          ]}
         >
-          <View style={styles.notch} />
-          <View style={styles.notchLabelRow}>
-            <Text style={styles.notchLabelText}>
-              {isPanelCollapsed
-                ? `▲ Show Controls (${connectedCount} connected)`
-                : "▼ Hide Panel"}
-            </Text>
-          </View>
-        </Pressable>
-
-        {!isPanelCollapsed && (
-          <>
-            <View style={styles.bannerSlot}>
-              <LocationStatusBanner
-                permission={permission}
-                serviceState={serviceState}
-                onRequest={() => {
-                  void locationStore.start();
-                }}
-              />
-            </View>
-
-            {/* Member strip with live statuses */}
-            <MemberStrip
-              members={members}
-              selfId={convoy.selfId}
-              onMemberPress={(member) => setSelectedMember(member)}
-            />
-
-            {/* PTT Control Button */}
-            <PttControl
-              ptt={ptt}
-              allowed={convoy.settings.membersCanPtt || isHostUser}
-              onSend={async (rec) => {
-                try {
-                  const base64 = await ptt.getLastRecordingBase64();
-                  if (!base64) {
-                    toast.show({ message: "Recording failed", variant: "error" });
-                    ptt.clear();
-                    return;
-                  }
-                  pttCommands.broadcast(base64, rec.durationMs);
-                  toast.show({
-                    message: `Sent ${Math.round(rec.durationMs / 1000)}s message`,
-                    variant: "success",
-                  });
-                } catch (err) {
-                  toast.show({ message: "Send failed", variant: "error" });
-                } finally {
-                  ptt.clear();
-                }
+          <View style={styles.bannerSlot}>
+            <LocationStatusBanner
+              permission={permission}
+              serviceState={serviceState}
+              onRequest={() => {
+                void locationStore.start();
               }}
-              onError={(msg) => toast.show({ message: msg, variant: "error" })}
             />
+          </View>
 
-            {/* Quick Access Row */}
-            <QuickAccessRow
-              onChatPress={() => setChatOpen(true)}
-              chatUnread={0}
-            />
-          </>
-        )}
-      </View>
+          {/* Member strip with live statuses */}
+          <MemberStrip
+            members={members}
+            selfId={convoy.selfId}
+            onMemberPress={(member) => setSelectedMember(member)}
+          />
+
+          {/* PTT Control Button */}
+          <PttControl
+            ptt={ptt}
+            allowed={convoy.settings.membersCanPtt || isHostUser}
+            onSend={async (rec) => {
+              try {
+                const base64 = await ptt.getLastRecordingBase64();
+                if (!base64) {
+                  toast.show({ message: "Recording failed", variant: "error" });
+                  ptt.clear();
+                  return;
+                }
+                pttCommands.broadcast(base64, rec.durationMs);
+                toast.show({
+                  message: `Sent ${Math.round(rec.durationMs / 1000)}s message`,
+                  variant: "success",
+                });
+              } catch (err) {
+                toast.show({ message: "Send failed", variant: "error" });
+              } finally {
+                ptt.clear();
+              }
+            }}
+            onError={(msg) => toast.show({ message: msg, variant: "error" })}
+          />
+
+          {/* Quick Access Row */}
+          <QuickAccessRow
+            onChatPress={() => setChatOpen(true)}
+            chatUnread={0}
+          />
+        </BottomSheetView>
+      </BottomSheet>
 
       {/* ---------------- Drawers & Sheets ---------------- */}
       <ChatDrawer visible={chatOpen} onClose={() => setChatOpen(false)} />
@@ -711,26 +764,23 @@ const styles = StyleSheet.create({
     zIndex: 15,
   },
 
-  bottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingTop: 2,
-    gap: spacing.md,
+  bottomSheetBackground: {
     backgroundColor: "rgba(16, 20, 28, 0.94)",
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
     borderTopWidth: 1,
     borderTopColor: "rgba(255, 255, 255, 0.08)",
+  },
+  bottomSheetShadow: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 8,
   },
-  bottomCollapsed: {
-    gap: 0,
+  bottomSheetContent: {
+    paddingTop: 4,
+    gap: spacing.md,
   },
   notchHandle: {
     alignItems: "center",
