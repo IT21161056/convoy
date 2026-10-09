@@ -1,8 +1,6 @@
 import { SettingRow } from "@/components/settings";
-import { Button, Screen, useToast } from "@/components/ui";
-import { chatStore } from "@/features/chat";
+import { BackButton, Button, Screen, useToast } from "@/components/ui";
 import { convoyCommands, getSelf, useConvoy } from "@/features/convoy";
-import { locationStore } from "@/features/location";
 import { colors, radii, spacing, typography } from "@/theme";
 import type { Member } from "@/types";
 import { router } from "expo-router";
@@ -56,11 +54,8 @@ export default function LobbyScreen() {
           text: "Leave",
           style: "destructive",
           onPress: () => {
-            locationStore.stop();
-            chatStore.clear();
             convoyCommands.leave();
             toast.show({ message: "Left convoy" });
-            router.replace("/(welcome)");
           },
         },
       ],
@@ -71,14 +66,12 @@ export default function LobbyScreen() {
     <Screen>
       <View style={styles.body}>
         <View style={styles.topBar}>
-          <Pressable
+          <BackButton
             onPress={handleLeave}
-            hitSlop={12}
-            style={styles.backButton}
-          >
-            <Text style={styles.backText}>←</Text>
-          </Pressable>
+            accessibilityLabel="Leave convoy"
+          />
         </View>
+
 
         <View style={styles.header}>
           <Text style={styles.title}>{convoy.name}</Text>

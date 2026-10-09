@@ -1,4 +1,4 @@
-import { Button, useToast } from "@/components/ui";
+import { BackButton, Button, useToast } from "@/components/ui";
 import { useConvoy } from "@/features/convoy";
 import { colors, radii, spacing, typography } from "@/theme";
 import * as Clipboard from "expo-clipboard";
@@ -25,14 +25,9 @@ export default function QRScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
         <View style={styles.topBar}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={12}
-            style={styles.iconButton}
-          >
-            <Text style={styles.iconText}>←</Text>
-          </Pressable>
+          <BackButton onPress={() => router.back()} />
         </View>
+
 
         <View style={styles.body}>
           <Text style={styles.title}>{convoy.name}</Text>

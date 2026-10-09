@@ -1,6 +1,5 @@
 import { Section, SettingRow, SwitchRow } from "@/components/settings";
-import { Input, Screen, useToast } from "@/components/ui";
-import { chatStore } from "@/features/chat";
+import { BackButton, Input, Screen, useToast } from "@/components/ui";
 import {
   convoyCommands,
   convoyStore,
@@ -8,6 +7,7 @@ import {
   useConvoy,
 } from "@/features/convoy";
 import { locationStore, useBackgroundPermission } from "@/features/location";
+
 import { colors, spacing, typography } from "@/theme";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
@@ -55,10 +55,8 @@ export default function SettingsScreen() {
           text: "Leave",
           style: "destructive",
           onPress: () => {
-            locationStore.stop();
-            chatStore.clear();
             convoyCommands.leave();
-            router.replace("/(welcome)");
+            toast.show({ message: "Left convoy" });
           },
         },
       ],
@@ -75,10 +73,8 @@ export default function SettingsScreen() {
           text: "End Convoy",
           style: "destructive",
           onPress: () => {
-            // Just emit. The server verifies host, broadcasts
-            // `convoy:ended`, and every client — including this one —
-            // tears down via useMemberSync's handler.
             convoyCommands.end();
+            toast.show({ message: "Convoy ended" });
           },
         },
       ],
@@ -94,8 +90,17 @@ export default function SettingsScreen() {
           headerTintColor: colors.text,
           headerShadowVisible: false,
           title: "Convoy Settings",
+          headerLeft: () => (
+            <BackButton
+              buttonSize={36}
+              size={18}
+              onPress={() => router.back()}
+              style={{ marginRight: spacing.sm }}
+            />
+          ),
         }}
       />
+
       <Screen padded={false}>
         <ScrollView
           contentContainerStyle={styles.scroll}

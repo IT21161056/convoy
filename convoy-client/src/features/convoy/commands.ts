@@ -1,3 +1,5 @@
+import { chatStore } from "@/features/chat";
+import { locationStore } from "@/features/location";
 import { emit, on } from "@/services/socket";
 import type {
   ConvoyRejoinPayload,
@@ -10,7 +12,9 @@ import type {
 import { EVENTS } from "@/services/socket/events";
 import { getMemberId } from "@/services/socket/identity";
 import type { Convoy, ConvoySettings } from "@/types";
+import { router } from "expo-router";
 import { convoyStore } from "./useConvoy";
+
 
 // -------- adapter: wire snapshot → local Convoy --------
 function fromSnapshot(
@@ -231,10 +235,39 @@ export const convoyCommands = {
       };
       emit(EVENTS.CONVOY_LEAVE, payload);
     }
-    convoyStore.clear();
+    try {
+      locationStore.stop();
+    } catch (e) {
+      console.warn("[convoyCommands.leave] location stop error:", e);
+    }
+    // Navigate back to welcome cleanly before store teardown to avoid unmounting active layouts
+    router.replace("/(welcome)");
+    setTimeout(() => {
+      try {
+        chatStore.clear();
+        convoyStore.clear();
+      } catch (e) {
+        console.warn("[convoyCommands.leave] store clear error:", e);
+      }
+    }, 100);
   },
 
   end() {
     emit(EVENTS.CONVOY_END);
+    try {
+      locationStore.stop();
+    } catch (e) {
+      console.warn("[convoyCommands.end] location stop error:", e);
+    }
+    router.replace("/(welcome)");
+    setTimeout(() => {
+      try {
+        chatStore.clear();
+        convoyStore.clear();
+      } catch (e) {
+        console.warn("[convoyCommands.end] store clear error:", e);
+      }
+    }, 100);
   },
 };
+

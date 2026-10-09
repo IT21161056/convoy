@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui";
+import { BackButton, Button } from "@/components/ui";
 import { convoyCommands } from "@/features/convoy";
 import { getItem, STORAGE_KEYS } from "@/services/storage";
 import { colors, radii, spacing, typography } from "@/theme";
@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
 
 
 
@@ -152,13 +153,12 @@ export default function ScanQRScreen() {
         </View>
 
         <SafeAreaView style={styles.topBar} edges={["top"]}>
-          <Pressable
+          <BackButton
+            variant="close"
             onPress={() => router.back()}
-            hitSlop={12}
-            style={styles.iconButton}
-          >
-            <Text style={styles.iconButtonText}>✕</Text>
-          </Pressable>
+            accessibilityLabel="Close scanner"
+          />
+
 
           <Pressable
             onPress={() => setTorch((t) => !t)}

@@ -1,9 +1,10 @@
-import { useToast } from "@/components/ui";
+import { BackButton, useToast } from "@/components/ui";
 import { pttCommands, usePushToTalk } from "@/features/pushToTalk";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   AppState,
   LayoutAnimation,
   Platform,
@@ -14,6 +15,7 @@ import {
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Circle, Path } from "react-native-svg";
 
 import { ChatDrawer } from "@/components/ChatDrawer";
 import { ConnectionStatusPill } from "@/components/ConnectionStatusPill";
@@ -26,7 +28,8 @@ import { MemberStrip } from "@/components/MemberStrip";
 import PttControl from "@/components/PttControl";
 import { QuickAccessRow } from "@/components/QuickAccessRow";
 
-import { convoyStore, getSelf, useConvoy } from "@/features/convoy";
+import { convoyCommands, convoyStore, getSelf, useConvoy } from "@/features/convoy";
+
 import { useOutboxPendingCount } from "@/services/sync";
 import {
   locationStore,
@@ -277,8 +280,59 @@ export default function MapScreen() {
     recenter();
   }, [selfLocation, recenter]);
 
+  // ---------------- safe back / leave handler ----------------
+
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    Alert.alert(
+      isHostUser ? "Exit Convoy" : "Leave Convoy",
+      isHostUser
+        ? "You are the convoy host. You can leave the convoy (transfers host to the next driver) or end the trip for everyone."
+        : "Are you sure you want to exit and leave this convoy? You will stop sharing your location.",
+      isHostUser
+        ? [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Leave Convoy",
+            style: "default",
+            onPress: () => {
+              convoyCommands.leave();
+              toast.show({ message: "Left convoy" });
+            },
+          },
+          {
+            text: "End Convoy",
+            style: "destructive",
+            onPress: () => {
+              convoyCommands.end();
+              toast.show({ message: "Convoy ended" });
+            },
+          },
+        ]
+        : [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Leave Convoy",
+            style: "destructive",
+            onPress: () => {
+              convoyCommands.leave();
+              toast.show({ message: "Left convoy" });
+            },
+          },
+        ],
+    );
+  }, [isHostUser, toast]);
+
   // ---------------- guard: no convoy ----------------
-  if (!convoy) return null;
+
+  if (!convoy) {
+    return <View style={styles.container} />;
+  }
+
 
   // ---------------- loading: waiting for GPS (only when locationSharing is enabled) ----------------
   if (
@@ -298,9 +352,9 @@ export default function MapScreen() {
   // Calculate distance to host (convoy leader) if applicable
   const distanceToHost =
     hostMember &&
-    hostMember.id !== convoy.selfId &&
-    positionsById[hostMember.id] &&
-    positionsById[convoy.selfId]
+      hostMember.id !== convoy.selfId &&
+      positionsById[hostMember.id] &&
+      positionsById[convoy.selfId]
       ? distanceMeters(positionsById[convoy.selfId], positionsById[hostMember.id])
       : null;
 
@@ -324,17 +378,17 @@ export default function MapScreen() {
         initialRegion={
           selfLocation
             ? {
-                ...selfLocation.position,
+              ...selfLocation.position,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            }
+            : validWaypoints[0]
+              ? {
+                latitude: validWaypoints[0].latitude,
+                longitude: validWaypoints[0].longitude,
                 latitudeDelta: 0.02,
                 longitudeDelta: 0.02,
               }
-            : validWaypoints[0]
-              ? {
-                  latitude: validWaypoints[0].latitude,
-                  longitude: validWaypoints[0].longitude,
-                  latitudeDelta: 0.02,
-                  longitudeDelta: 0.02,
-                }
               : INITIAL_REGION
         }
         showsUserLocation={false}
@@ -437,14 +491,12 @@ export default function MapScreen() {
 
       {/* ---------------- Top navigation bar ---------------- */}
       <View style={[styles.topBar, { paddingTop: insets.top + spacing.xs }]}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          style={styles.iconButton}
-          accessibilityLabel="Back"
-        >
-          <Text style={styles.iconText}>←</Text>
-        </Pressable>
+        <BackButton
+          onPress={handleBack}
+          buttonSize={40}
+          size={20}
+          accessibilityLabel="Back or Exit Convoy"
+        />
 
         <View style={styles.topCenter}>
           <Text style={styles.convoyName} numberOfLines={1}>
@@ -458,25 +510,58 @@ export default function MapScreen() {
         </View>
 
         <View style={styles.topRightActions}>
-          <Pressable
+          {/* <Pressable
             onPress={fitConvoy}
             hitSlop={10}
-            style={styles.iconButton}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.iconButtonPressed,
+            ]}
+            accessibilityRole="button"
             accessibilityLabel="Fit Convoy"
           >
-            <Text style={styles.topFitIcon}>⛶</Text>
-          </Pressable>
+            <Svg
+              width={18}
+              height={18}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={colors.primary}
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <Path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+            </Svg>
+          </Pressable> */}
 
           <Pressable
             onPress={() => router.push("/(convoy)/settings")}
             hitSlop={12}
-            style={styles.iconButton}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.iconButtonPressed,
+            ]}
+            accessibilityRole="button"
             accessibilityLabel="Settings"
           >
-            <Text style={styles.iconText}>⋮</Text>
+            <Svg
+              width={18}
+              height={18}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={colors.text}
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <Circle cx="12" cy="5" r="1.5" fill={colors.text} />
+              <Circle cx="12" cy="12" r="1.5" fill={colors.text} />
+              <Circle cx="12" cy="19" r="1.5" fill={colors.text} />
+            </Svg>
           </Pressable>
         </View>
       </View>
+
 
       {/* ---------------- Telemetry & Formation HUD ---------------- */}
       <View style={[styles.hudSlot, { top: insets.top + 58 }]}>
@@ -679,15 +764,26 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   iconButton: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: radii.pill,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.raised,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
+  iconButtonPressed: {
+    backgroundColor: "rgba(255, 255, 255, 0.16)",
+    borderColor: "rgba(255, 255, 255, 0.22)",
+    transform: [{ scale: 0.95 }],
+  },
+
   iconText: {
     ...typography.body,
     fontSize: 17,

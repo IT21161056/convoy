@@ -1,8 +1,8 @@
 import { Section, SwitchRow } from "@/components/settings";
-import { Screen, useToast } from "@/components/ui";
+import { BackButton, Screen, useToast } from "@/components/ui";
 import { convoyCommands, getSelf, useConvoy } from "@/features/convoy";
 import { colors, spacing, typography } from "@/theme";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function PermissionsScreen() {
@@ -24,8 +24,17 @@ export default function PermissionsScreen() {
           headerTintColor: colors.text,
           headerShadowVisible: false,
           title: "Member Permissions",
+          headerLeft: () => (
+            <BackButton
+              buttonSize={36}
+              size={18}
+              onPress={() => router.back()}
+              style={{ marginRight: spacing.sm }}
+            />
+          ),
         }}
       />
+
       <Screen padded={false}>
         <ScrollView
           contentContainerStyle={styles.scroll}

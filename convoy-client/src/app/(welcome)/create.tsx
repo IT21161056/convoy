@@ -1,4 +1,5 @@
-import { Button, Input, Screen, useToast } from "@/components/ui";
+import { BackButton, Button, Input, Screen, useToast } from "@/components/ui";
+
 import { convoyCommands } from "@/features/convoy";
 import { getItem, setItem, STORAGE_KEYS } from "@/services/storage";
 import { colors, radii, spacing, typography } from "@/theme";
@@ -68,8 +69,17 @@ export default function CreateConvoyScreen() {
           headerTintColor: colors.text,
           headerShadowVisible: false,
           title: "",
+          headerLeft: () => (
+            <BackButton
+              buttonSize={36}
+              size={18}
+              onPress={() => router.back()}
+              style={{ marginRight: spacing.sm }}
+            />
+          ),
         }}
       />
+
       <Screen>
         {stage === "form" ? (
           <View style={styles.body}>
